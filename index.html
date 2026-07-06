@@ -196,7 +196,7 @@
   <section id="view-gen">
     <div class="card">
       <div class="rail"></div>
-      <div class="chead"><div class="clabel">Timecode de départ</div></div>
+      <div class="chead"><div class="clabel" id="gen-start-label">Timecode de départ</div></div>
       <div class="grp" id="gen-start"></div>
     </div>
 
@@ -207,6 +207,25 @@
         <div class="cell"><input id="gen-min" inputmode="numeric" maxlength="2" value="01"><div class="cap">Minutes</div></div>
         <div class="sep">:</div>
         <div class="cell"><input id="gen-sec" inputmode="numeric" maxlength="2" value="00"><div class="cap">Secondes</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="rail"></div>
+      <div class="chead">
+        <div class="clabel">Pré-décompte (count-in)</div>
+        <div class="chead-r"><div class="seg" id="gen-pre-toggle" style="gap:3px;">
+          <button data-v="off" class="on" style="font-size:10px;padding:5px 11px;">Off</button>
+          <button data-v="on" style="font-size:10px;padding:5px 11px;">On</button>
+        </div></div>
+      </div>
+      <div id="gen-pre-body" class="hidden">
+        <div class="grp">
+          <div class="cell"><input id="pre-bpm" inputmode="decimal" maxlength="6" value="120"><div class="cap">Tempo BPM</div></div>
+          <div class="cell"><input id="pre-bpb" inputmode="numeric" maxlength="2" value="04"><div class="cap">Temps / mesure</div></div>
+          <div class="cell"><input id="pre-bars" inputmode="numeric" maxlength="2" value="01"><div class="cap">Mesures</div></div>
+        </div>
+        <div class="meta" id="pre-meta" style="margin-top:12px;"></div>
       </div>
     </div>
 
@@ -467,25 +486,73 @@ buildSeg($('gen-fps'),GEN_FPS.map(v=>({v,label:FORMATS[v].label})),gen.fps,v=>{g
 buildSeg($('gen-sr'),SR_LIST.map(v=>({v,label:(v/1000)+'k'})),gen.sr,v=>{gen.sr=v;onGenChange();});
 buildSeg($('gen-bd'),BD_LIST.map(v=>({v,label:v+'-bit'})),gen.bd,v=>{gen.bd=v;onGenChange();});
 $('gen-vol').value=gen.vol;
+// pre-count
+if(!gen.pre)gen.pre={on:false,bpm:120,bpb:4,bars:1};
+$('pre-bpm').value=gen.pre.bpm;$('pre-bpb').value=pad(gen.pre.bpb);$('pre-bars').value=pad(gen.pre.bars);
+function setPreToggle(){[...$('gen-pre-toggle').children].forEach(b=>b.classList.toggle('on',(b.dataset.v==='on')===!!gen.pre.on));
+  $('gen-pre-body').classList.toggle('hidden',!gen.pre.on);}
+[...$('gen-pre-toggle').children].forEach(b=>{b.onclick=()=>{gen.pre.on=(b.dataset.v==='on');setPreToggle();onGenChange();};});
+setPreToggle();
+$('pre-bpm').addEventListener('input',()=>{let v=$('pre-bpm').value.replace(/[^\d.]/g,'').replace(/(\..*)\./g,'$1');$('pre-bpm').value=v;gen.pre.bpm=v;onGenChange();});
+$('pre-bpm').addEventListener('blur',()=>{let n=parseFloat($('pre-bpm').value)||0;if(n<=0)n=120;$('pre-bpm').value=n;gen.pre.bpm=n;onGenChange();});
+[['pre-bpb','bpb',4],['pre-bars','bars',1]].forEach(([id,key])=>{
+  $(id).addEventListener('input',()=>{$(id).value=$(id).value.replace(/\D/g,'').slice(0,2);gen.pre[key]=parseInt($(id).value||'0',10);onGenChange();});
+  $(id).addEventListener('blur',()=>{let n=parseInt($(id).value||'0',10)||1;if(n<1)n=1;$(id).value=pad(n);gen.pre[key]=n;onGenChange();});});
+['pre-bpm','pre-bpb','pre-bars'].forEach(id=>$(id).addEventListener('focus',()=>$(id).select()));
 function readGen(){const F=FORMATS[gen.fps];
   const hh=clampCell($('g-hh'),{max:23}),mm=clampCell($('g-mm'),{max:59}),ss=clampCell($('g-ss'),{max:59}),ff=Math.min(clampCell($('g-ff'),{}),F.base-1);
   const durMin=clampCell($('gen-min'),{max:60}),durSec=clampCell($('gen-sec'),{max:59});
-  const durationSec=Math.max(1/F.fps,durMin*60+durSec);
-  const eff=framesToTC(tcToFrames(hh,mm,ss,ff,F),F);
-  return{F,hh:eff.hh,mm:eff.mm,ss:eff.ss,ff:eff.ff,durationSec,durMin,durSec,snapped:(eff.hh!==hh||eff.mm!==mm||eff.ss!==ss||eff.ff!==ff)};}
+  const mainDur=Math.max(1/F.fps,durMin*60+durSec);
+  // entered TC = downbeat (first musical beat); DF-snapped
+  const enteredFrame=tcToFrames(hh,mm,ss,ff,F);
+  const down=framesToTC(enteredFrame,F);
+  const snapped=(down.hh!==hh||down.mm!==mm||down.ss!==ss||down.ff!==ff);
+  const downFrame=tcToFrames(down.hh,down.mm,down.ss,down.ff,F);
+  let pre={on:false};
+  if(gen.pre&&gen.pre.on){
+    const bpm=parseFloat(gen.pre.bpm)||0,bpb=parseInt(gen.pre.bpb,10)||0,bars=parseInt(gen.pre.bars,10)||0;
+    const beats=bpb*bars;
+    if(bpm>0&&beats>0){
+      const sec=beats*60/bpm;let frames=Math.round(sec*F.fps);let neg=false;let startFrame=downFrame-frames;
+      if(startFrame<0){startFrame=0;frames=downFrame;neg=true;}
+      const st=framesToTC(startFrame,F);
+      pre={on:true,bpm,bpb,bars,beats,sec,frames,actualSec:frames/F.fps,neg};
+      return{F,hh:st.hh,mm:st.mm,ss:st.ss,ff:st.ff,durationSec:mainDur+frames/F.fps,durMin,durSec,snapped,down,pre,mainDur};
+    }
+    pre={on:true,invalid:true};
+  }
+  return{F,hh:down.hh,mm:down.mm,ss:down.ss,ff:down.ff,durationSec:mainDur,durMin,durSec,snapped,down,pre,mainDur};}
 function onGenChange(){
   gen.fps=[...$('gen-fps').children].find(c=>c.classList.contains('on'))?.dataset.v||gen.fps;
   const F=FORMATS[gen.fps];const ffEl=$('g-ff');if(ffEl){const cur=parseInt(ffEl.value||'0',10);if(cur>F.base-1)ffEl.value=pad(F.base-1);}
-  const g=readGen();gen.start={hh:g.hh,mm:g.mm,ss:g.ss,ff:g.ff};gen.min=g.durMin;gen.sec=g.durSec;gen.vol=parseFloat($('gen-vol').value);
+  const g=readGen();gen.start=g.down;gen.min=g.durMin;gen.sec=g.durSec;gen.vol=parseFloat($('gen-vol').value);
   $('gen-vol-val').textContent=gen.vol.toFixed(1)+' dBFS';
+  const sep=F.df?';':':';
+  $('gen-start-label').textContent=(g.pre&&g.pre.on)?'Timecode du premier temps (downbeat)':'Timecode de départ';
+  const startStr=`${pad(g.hh)}:${pad(g.mm)}:${pad(g.ss)}${sep}${pad(g.ff)}`;
+  const downStr=`${pad(g.down.hh)}:${pad(g.down.mm)}:${pad(g.down.ss)}${sep}${pad(g.down.ff)}`;
+  // pre-count detail block
+  if(g.pre&&g.pre.on){let pm='';
+    if(g.pre.invalid){pm=`<span class="warn">⚠ Renseigne un tempo et un nombre de temps valides.</span>`;}
+    else{const p=g.pre;
+      pm=`<b>${p.beats}</b> temps (${p.bars} mesure${p.bars>1?'s':''} × ${p.bpb}) · <b>${p.bpm}</b> BPM · pré-décompte <b>${p.actualSec.toFixed(3)} s</b> (${p.frames} img)<br>`+
+         `Le LTC démarre à <b>${startStr}</b> · premier temps à <b>${downStr}</b>`;
+      if(p.neg)pm+=`<br><span class="warn">⚠ Pré-décompte plus long que le timecode — départ tronqué à 00:00:00${sep}00.</span>`;}
+    $('pre-meta').innerHTML=pm;}
   const nFrames=Math.round(g.durationSec*F.fps);const bytes=44+Math.round(g.durationSec*gen.sr)*(gen.bd/8);const mb=bytes/1048576;
   const sizeStr=mb>=1?mb.toFixed(1)+' Mo':(bytes/1024).toFixed(0)+' Ko';const fname=genFilename(g);
-  let html=`Durée <b>${Math.floor(g.durationSec/60)}m ${pad(Math.round(g.durationSec%60))}s</b> · <b>${nFrames.toLocaleString('fr-CA')}</b> images · fichier ≈ <b>${sizeStr}</b><br>Fichier : <b>${fname}</b>`;
-  if(g.snapped)html+=`<br><span class="warn">⚠ Départ ajusté à ${pad(g.hh)}:${pad(g.mm)}:${pad(g.ss)}:${pad(g.ff)} (image inexistante en drop frame)</span>`;
+  const totalLbl=(g.pre&&g.pre.on&&!g.pre.invalid)?'Durée totale (pré-décompte inclus)':'Durée';
+  let html=`${totalLbl} <b>${Math.floor(g.durationSec/60)}m ${pad(Math.round(g.durationSec%60))}s</b> · <b>${nFrames.toLocaleString('fr-CA')}</b> images · fichier ≈ <b>${sizeStr}</b><br>Fichier : <b>${fname}</b>`;
+  if(g.snapped)html+=`<br><span class="warn">⚠ Départ ajusté à ${downStr} (image inexistante en drop frame)</span>`;
   if(mb>400)html+=`<br><span class="warn">⚠ Fichier volumineux (${sizeStr}) — peut échouer sur iOS. Réduire durée / sample rate.</span>`;
   $('gen-meta').innerHTML=html;save('gen',gen);}
 function genFilename(g){const F=FORMATS[gen.fps];const fps=F.label.replace(/[.\s]/g,'');
-  return `LTC_${pad(g.hh)}${pad(g.mm)}${pad(g.ss)}${pad(g.ff)}_${fps}_${gen.sr/1000}k_${gen.bd}bit.wav`;}
+  const d=(g&&g.down)?g.down:gen.start;
+  const tc=`${pad(d.hh)}${pad(d.mm)}${pad(d.ss)}${pad(d.ff)}`;
+  let pc='';
+  if(g&&g.pre&&g.pre.on&&!g.pre.invalid){const bpm=String(g.pre.bpm).replace('.','p');
+    pc=`_pc${g.pre.beats}beats_${bpm}bpm`;}
+  return `LTC_${tc}${pc}_${fps}_${gen.sr/1000}k_${gen.bd}bit.wav`;}
 $('gen-vol').addEventListener('input',onGenChange);
 ['g-hh','g-mm','g-ss','g-ff','gen-min','gen-sec'].forEach(id=>{$(id).addEventListener('input',onGenChange);$(id).addEventListener('focus',()=>$(id).select());});
 $('gen-export').onclick=()=>{const g=readGen();

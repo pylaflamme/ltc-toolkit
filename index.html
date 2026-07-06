@@ -48,7 +48,7 @@
   .wrap{max-width:660px;margin:0 auto;padding:14px 14px 60px;}
 
   .top{display:flex;align-items:center;gap:11px;padding:6px 2px 14px;}
-  .mark{width:34px;height:34px;flex:none;}
+  .mark{height:30px;width:auto;flex:none;}
   .brand{font-weight:800;letter-spacing:.16em;font-size:15px;text-transform:uppercase;}
   .brand span{color:var(--amber);}
   .brand small{display:block;font-weight:600;letter-spacing:.22em;font-size:9px;color:var(--dim2);margin-top:2px;}
@@ -165,6 +165,8 @@
   .row2{display:flex;gap:13px;flex-wrap:wrap;}
   .row2 > .half{flex:1;min-width:150px;}
   .foot{text-align:center;font-size:9px;color:var(--dim2);letter-spacing:.1em;line-height:1.8;margin-top:22px;text-transform:uppercase;}
+  .credit{display:inline-block;margin-top:6px;color:var(--dim);}
+  .credit a{color:var(--amber);text-decoration:none;}
   .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:var(--amber);color:#1a1206;
     font-weight:700;font-size:12px;letter-spacing:.05em;padding:11px 20px;border-radius:9px;opacity:0;transition:.22s;
     pointer-events:none;z-index:70;text-transform:uppercase;}
@@ -176,10 +178,7 @@
 <div class="wrap">
 
   <div class="top">
-    <svg class="mark" viewBox="0 0 40 40" fill="none">
-      <rect x="1" y="1" width="38" height="38" rx="8" stroke="var(--amber-dim)" stroke-width="1.5"/>
-      <path d="M5 20h3v-7h4v7h3v7h4v-7h4v7h4v-14h4v14h4" stroke="var(--amber)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-    </svg>
+    <svg class="mark" viewBox="0 0 645 360" xmlns="http://www.w3.org/2000/svg" aria-label="PY"><g transform="translate(0,360) scale(0.1,-0.1)" fill="var(--amber)"><path d="M50 1780 l0 -1770 225 0 225 0 2 398 3 397 700 6 c385 4 736 11 780 17 512 66 856 209 1071 445 89 98 92 79 -37 283 -61 98 -122 194 -134 212 l-23 33 -42 -63 c-137 -202 -308 -327 -537 -393 -222 -65 -369 -74 -1124 -75 -581 0 -647 2 -653 16 -9 24 -7 1777 3 1792 6 11 155 12 802 9 679 -3 807 -6 882 -20 255 -47 405 -122 559 -280 81 -82 70 -66 490 -737 336 -536 509 -813 730 -1163 l118 -188 0 -313 c0 -173 3 -328 6 -345 l7 -31 223 0 224 0 0 346 0 346 84 132 c45 72 215 336 376 586 161 250 323 501 359 558 165 256 822 1278 886 1377 86 133 115 180 115 189 0 3 -125 6 -278 6 l-278 0 -411 -657 c-621 -995 -1053 -1684 -1067 -1705 -15 -22 27 -87 -510 790 -75 122 -197 322 -272 445 -75 122 -170 276 -210 342 -140 232 -180 288 -255 369 -220 234 -519 359 -960 400 -137 13 -336 16 -1123 16 l-956 0 0 -1770z"/></g></svg>
     <div>
       <div class="brand">LTC <span>Toolkit</span></div>
       <small>Générateur · Calculatrice SMPTE</small>
@@ -348,7 +347,8 @@
 
   <div class="foot">
     SMPTE ST 12-1 · Biphase Mark · Drop frame NTSC 29.97<br>
-    Hors-ligne · Ajoutable à l'écran d'accueil
+    Hors-ligne · Ajoutable à l'écran d'accueil<br>
+    <span class="credit">Conçu par Pierre-Yves Laflamme · <a href="mailto:info@pylaflamme.com">info@pylaflamme.com</a></span>
   </div>
 </div>
 

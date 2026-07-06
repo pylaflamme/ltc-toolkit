@@ -1,6 +1,6 @@
 /* LTC Toolkit service worker — offline cache.
    Bump CACHE (v1 -> v2 ...) whenever you upload a new index.html so devices refresh. */
-const CACHE = 'ltc-toolkit-v1';
+const CACHE = 'ltc-toolkit-v3';
 const ASSETS = [
   '.', 'index.html', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png'
